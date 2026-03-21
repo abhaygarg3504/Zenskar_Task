@@ -4,7 +4,7 @@
   "main": "run-pipeline.js",
   "scripts": {
     "api": "node mock-api/server.js",
-    "pipeline": "node run-pipeline.js sample-data/customers.csv http://localhost:3001/api/v1/customers test-api-key-12345",
+    "pipeline": "node run-pipeline.js sample-data/customers.csv https://69be49c817c3d7d97791a52a.mockapi.io/api/v1/customers test-api-key-12345",
     "dev": "concurrently \"npm run api\" \"npm run pipeline\""
   },
   "dependencies": {
