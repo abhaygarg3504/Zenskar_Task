@@ -100,27 +100,15 @@ curl http://localhost:3001/api/v1/customers
 ---
 
 ### Option B — Run on Windmill
+ 
 
-**1. Start Windmill with Docker:**
-```bash
-docker run -d --name windmill \
-  -p 8000:8000 \
-  -v windmill_data:/app/data \
-  ghcr.io/windmill-labs/windmill:main
-```
-
-Open `http://localhost:8000` — default login: `admin@windmill.dev` / `changeme`
-
-> Port conflict? Use `-p 8080:8000` and open `http://localhost:8080`  
-> Linux permission issues? Add `--user $(id -u):$(id -g)`
-
-**2. Set up a cloud mock endpoint (MockAPI.io):**
+**1. Set up a cloud mock endpoint (MockAPI.io):**
 1. Go to https://mockapi.io and create a free account
 2. Create a project named `csv-pipeline`
 3. Add a resource called `customers` with fields: `name`, `email`, `taxId`, `companySize`, `contact` (Object), `address` (Object), `metadata` (Object)
 4. Copy your endpoint — it looks like: `https://XXXXXXXX.mockapi.io/api/v1/customers`
 
-**3. Create the Windmill flow:**
+**2. Create the Windmill flow:**
 1. Go to **Flows → New Flow**
 2. Add 5 steps as inline JavaScript scripts in this order:
 
@@ -134,7 +122,7 @@ Open `http://localhost:8000` — default login: `admin@windmill.dev` / `changeme
 
 Refer to `flows/csv_pipeline.json` for the full binding config.
 
-**4. Run the flow with these inputs:**
+**3. Run the flow with these inputs:**
 - `fileContent` — paste the contents of `sample-data/customers.csv`
 - `apiUrl` — your MockAPI endpoint URL
 - `apiKey` — leave blank (MockAPI doesn't require one by default)
