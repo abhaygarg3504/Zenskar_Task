@@ -4,6 +4,23 @@ A modular pipeline that reads customer data from a CSV file, validates and trans
 
 ---
 
+## Table of Contents
+
+- [How it works](#how-it-works)
+- [Project Structure](#project-structure)
+- [Prerequisites](#prerequisites)
+- [Local Setup & Installation](#local-setup--installation)
+- [Quick Start](#quick-start)
+- [CSV Format](#csv-format)
+- [Configuration — config/mapping.json](#configuration--configmappingjson)
+- [When you need to touch the scripts](#when-you-need-to-touch-the-scripts)
+- [API Behavior](#api-behavior)
+- [Reading the Report](#reading-the-report)
+- [Common Errors](#common-errors)
+- [Design Notes](#design-notes)
+
+---
+
 ## How it works
 
 ```
@@ -64,16 +81,110 @@ windmill-csv-pipeline/
 
 ---
 
-## Quick Start
+## Prerequisites
 
-### Option A — Run locally (no Windmill needed)
+Before setting up the project, make sure you have the following installed on your machine:
 
-**Requirements:** Node.js 18+, two terminal windows.
+### 1. Node.js (v18 or higher)
 
-**Terminal 1 — start the mock API:**
+Check if Node.js is already installed:
+```bash
+node --version
+```
+
+If not installed, download it from the official site: https://nodejs.org/en/download
+
+- **Windows/macOS**: Download the LTS installer and run it.
+- **Linux (Ubuntu/Debian)**:
+  ```bash
+  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+  ```
+
+### 2. npm (comes with Node.js)
+
+Verify npm is available:
+```bash
+npm --version
+```
+
+### 3. Git
+
+To clone the repository:
+```bash
+git --version
+```
+
+If not installed: https://git-scm.com/downloads
+
+---
+
+## Local Setup & Installation
+
+Follow these steps to get the project running on your local machine.
+
+### Step 1 — Clone the repository
+
+```bash
+git clone https://github.com/your-org/windmill-csv-pipeline.git
+cd windmill-csv-pipeline
+```
+
+> If you received the project as a ZIP file, extract it and navigate into the folder:
+> ```bash
+> cd windmill-csv-pipeline
+> ```
+
+### Step 2 — Install root dependencies
+
+From the project root, install the main pipeline dependencies:
+
+```bash
+npm install
+```
+
+### Step 3 — Install mock API dependencies
+
+The mock API is a separate Express server with its own `package.json`. Install its dependencies:
+
 ```bash
 cd mock-api
 npm install
+cd ..
+```
+
+### Step 4 — Verify the project structure
+
+Your directory should look like this after installation:
+
+```
+windmill-csv-pipeline/
+├── node_modules/         ← installed after Step 2
+├── mock-api/
+│   └── node_modules/     ← installed after Step 3
+├── scripts/
+├── config/
+├── sample-data/
+└── run-pipeline.js
+```
+
+---
+
+## Quick Start
+
+Choose one of the three options below depending on your setup.
+
+---
+
+### Option A — Run locally (no Windmill, no internet needed)
+
+This is the recommended option for local development and testing.
+
+**You will need two terminal windows open at the same time.**
+
+**Terminal 1 — Start the mock API server:**
+```bash
+cd mock-api
 npm start
 ```
 
@@ -84,16 +195,19 @@ Mock API running at http://localhost:3001
   API Key (Bearer): test-api-key-12345
 ```
 
-**Terminal 2 — run the pipeline:**
+Keep this terminal running.
+
+**Terminal 2 — Run the pipeline:**
 ```bash
 node run-pipeline.js sample-data/customers.csv http://localhost:3001/api/v1/customers test-api-key-12345
 ```
 
-**Check results:**
+**Check the results:**
 ```bash
+# View the generated report
 cat report.json
 
-# or view created customers directly
+# View all successfully created customers
 curl http://localhost:3001/api/v1/customers
 ```
 
@@ -101,26 +215,13 @@ curl http://localhost:3001/api/v1/customers
 
 ### Option B — Run on Windmill
 
-**1. Start Windmill with Docker:**
-```bash
-docker run -d --name windmill \
-  -p 8000:8000 \
-  -v windmill_data:/app/data \
-  ghcr.io/windmill-labs/windmill:main
-```
-
-Open `http://localhost:8000` — default login: `admin@windmill.dev` / `changeme`
-
-> Port conflict? Use `-p 8080:8000` and open `http://localhost:8080`  
-> Linux permission issues? Add `--user $(id -u):$(id -g)`
-
-**2. Set up a cloud mock endpoint (MockAPI.io):**
+**1. Set up a cloud mock endpoint (MockAPI.io):**
 1. Go to https://mockapi.io and create a free account
 2. Create a project named `csv-pipeline`
-3. Add a resource called `customers` with fields: `name`, `email`, `taxId`, `companySize`, `contact` (Object), `address` (Object), `metadata` (Object)
-4. Copy your endpoint — it looks like: `https://XXXXXXXX.mockapi.io/api/v1/customers`
+3. Add a resource called `customers` with these fields: `name`, `email`, `taxId`, `companySize`, `contact` (Object), `address` (Object), `metadata` (Object)
+4. Copy your endpoint URL — it looks like: `https://XXXXXXXX.mockapi.io/api/v1/customers`
 
-**3. Create the Windmill flow:**
+**2. Create the Windmill flow:**
 1. Go to **Flows → New Flow**
 2. Add 5 steps as inline JavaScript scripts in this order:
 
@@ -132,9 +233,9 @@ Open `http://localhost:8000` — default login: `admin@windmill.dev` / `changeme
 | d | apiClient.js | `customers` ← `results.c.customers` |
 | e | report.js | `parseResult` ← `results.a`, etc. |
 
-Refer to `flows/csv_pipeline.json` for the full binding config.
+Refer to `flows/csv_pipeline.json` for the full binding configuration.
 
-**4. Run the flow with these inputs:**
+**3. Run the flow with these inputs:**
 - `fileContent` — paste the contents of `sample-data/customers.csv`
 - `apiUrl` — your MockAPI endpoint URL
 - `apiKey` — leave blank (MockAPI doesn't require one by default)
@@ -143,6 +244,8 @@ Refer to `flows/csv_pipeline.json` for the full binding config.
 ---
 
 ### Option C — MockAPI.io endpoint with local runner
+
+Use this if you want to run the pipeline locally but send data to a cloud endpoint.
 
 ```bash
 node run-pipeline.js sample-data/customers.csv https://YOUR_ID.mockapi.io/api/v1/customers
@@ -153,25 +256,25 @@ node run-pipeline.js sample-data/customers.csv https://YOUR_ID.mockapi.io/api/v1
 ## Expected Output
 
 ```
-🚀 CSV Pipeline Starting...
+ CSV Pipeline Starting...
 
-📄 Step 1: Parsing CSV...
+ Step 1: Parsing CSV...
    Parsed 12 rows. Parse errors: 0
 
-✅ Step 2: Validating rows...
+ Step 2: Validating rows...
    Valid: 9 | Invalid: 3
    ⚠ Row 8 (?): Missing required: "company_name"
    ⚠ Row 9 (Theta Corp): Bad email in "contact_email": not-an-email
 
-🔄 Step 3: Transforming data...
+ Step 3: Transforming data...
    Transformed 9 customers.
 
-📡 Step 4: Sending to API...
+ Step 4: Sending to API...
    ✓ Acme Corp → id=1
    ✓ Beta Inc → id=2
    ...
 
-📊 Final Report:
+ Final Report:
 ────────────────────────────────────────
   Rows in file:        12
   Successfully parsed: 12
@@ -191,10 +294,10 @@ Your file must include a header row. Required columns are marked below:
 
 | Column | Required | Example |
 |--------|----------|---------|
-| `company_name` | ✅ | Acme Corp |
-| `contact_email` | ✅ | john@acme.com |
-| `contact_first_name` | ✅ | John |
-| `contact_last_name` | ✅ | Doe |
+| `company_name` | yes | Acme Corp |
+| `contact_email` | yes | john@acme.com |
+| `contact_first_name` | yes | John |
+| `contact_last_name` | yes | Doe |
 | `phone_number` | no | +1-555-0100 |
 | `address` | no | 123 Business St |
 | `city` | no | New York |
@@ -353,6 +456,9 @@ The `errors` array tells you which rows failed and why, so you can fix them and 
 | `column count mismatch` | Unescaped comma in a field | Wrap that field in quotes |
 | `HTTP 429` | API rate limit hit | Pipeline retries automatically |
 | `HTTP 500` | API server error | Pipeline retries automatically |
+| `Cannot find module` | Dependencies not installed | Run `npm install` in root and `mock-api/` |
+| `EADDRINUSE: address already in use :3001` | Port 3001 is already occupied | Kill the process using port 3001 or change the port in `mock-api/server.js` |
+| `ENOENT: no such file or directory` | Wrong path to CSV file | Check the file path passed to `run-pipeline.js` |
 
 ---
 
