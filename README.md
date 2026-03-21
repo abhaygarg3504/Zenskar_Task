@@ -141,25 +141,25 @@ node run-pipeline.js sample-data/customers.csv https://YOUR_ID.mockapi.io/api/v1
 ## Expected Output
 
 ```
-🚀 CSV Pipeline Starting...
+ CSV Pipeline Starting...
 
-📄 Step 1: Parsing CSV...
+ Step 1: Parsing CSV...
    Parsed 12 rows. Parse errors: 0
 
-✅ Step 2: Validating rows...
+ Step 2: Validating rows...
    Valid: 9 | Invalid: 3
    ⚠ Row 8 (?): Missing required: "company_name"
    ⚠ Row 9 (Theta Corp): Bad email in "contact_email": not-an-email
 
-🔄 Step 3: Transforming data...
+ Step 3: Transforming data...
    Transformed 9 customers.
 
-📡 Step 4: Sending to API...
+ Step 4: Sending to API...
    ✓ Acme Corp → id=1
    ✓ Beta Inc → id=2
    ...
 
-📊 Final Report:
+ Final Report:
 ────────────────────────────────────────
   Rows in file:        12
   Successfully parsed: 12
@@ -179,10 +179,10 @@ Your file must include a header row. Required columns are marked below:
 
 | Column | Required | Example |
 |--------|----------|---------|
-| `company_name` | ✅ | Acme Corp |
-| `contact_email` | ✅ | john@acme.com |
-| `contact_first_name` | ✅ | John |
-| `contact_last_name` | ✅ | Doe |
+| `company_name` | yes | Acme Corp |
+| `contact_email` | yes | john@acme.com |
+| `contact_first_name` | yes | John |
+| `contact_last_name` | yes | Doe |
 | `phone_number` | no | +1-555-0100 |
 | `address` | no | 123 Business St |
 | `city` | no | New York |
