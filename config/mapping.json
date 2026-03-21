@@ -1,0 +1,41 @@
+{
+  "_comment": "Transformation mapping config. Edit this file to change how CSV columns map to customer object fields. No code changes needed.",
+
+  "fieldMappings": {
+    "name":      { "from": "company_name",       "transform": "trim" },
+    "email":     { "from": "contact_email",      "transform": "lowercase" },
+    "taxId":     { "from": "tax_id",             "transform": "trim" },
+    "companySize": { "from": "company_size",     "transform": "trim" }
+  },
+
+  "nestedMappings": {
+    "contact": {
+      "firstName": { "from": "contact_first_name", "transform": "trim" },
+      "lastName":  { "from": "contact_last_name",  "transform": "trim" },
+      "phone":     { "from": "phone_number",        "transform": "cleanPhone" }
+    },
+    "address": {
+      "street":     { "from": "address",      "transform": "trim" },
+      "city":       { "from": "city",         "transform": "trim" },
+      "country":    { "from": "country",      "transform": "uppercase" },
+      "postalCode": { "from": "postal_code",  "transform": "trim" }
+    },
+    "metadata": {
+      "source":    { "value": "csv_import" },
+      "importedAt": { "value": "__NOW__" }
+    }
+  },
+
+  "validationRules": {
+    "required": ["company_name", "contact_email"],
+    "email":    ["contact_email"],
+    "nonEmpty": ["contact_first_name", "contact_last_name"]
+  },
+
+  "transforms": {
+    "trim":       "value => value?.trim() ?? ''",
+    "lowercase":  "value => value?.trim().toLowerCase() ?? ''",
+    "uppercase":  "value => value?.trim().toUpperCase() ?? ''",
+    "cleanPhone": "value => value?.replace(/[^\\d+\\-()\\s]/g, '').trim() ?? ''"
+  }
+}

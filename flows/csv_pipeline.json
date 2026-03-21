@@ -1,0 +1,141 @@
+{
+  "summary": "CSV Customer Import Pipeline",
+  "description": "Processes a CSV file through parse → validate → transform → API → report stages. Each stage is an independent script.",
+  "value": {
+    "modules": [
+      {
+        "id": "a",
+        "summary": "Step 1: Parse CSV",
+        "value": {
+          "type": "rawscript",
+          "language": "javascript",
+          "content": "// Paste content of scripts/parseCsv.js here",
+          "input_transforms": {
+            "fileContent": {
+              "type": "javascript",
+              "expr": "flow_input.fileContent"
+            }
+          }
+        }
+      },
+      {
+        "id": "b",
+        "summary": "Step 2: Validate Rows",
+        "value": {
+          "type": "rawscript",
+          "language": "javascript",
+          "content": "// Paste content of scripts/validate.js here",
+          "input_transforms": {
+            "rows": {
+              "type": "javascript",
+              "expr": "results.a.rows"
+            },
+            "validationRules": {
+              "type": "javascript",
+              "expr": "flow_input.mappingConfig.validationRules"
+            }
+          }
+        }
+      },
+      {
+        "id": "c",
+        "summary": "Step 3: Transform Data",
+        "value": {
+          "type": "rawscript",
+          "language": "javascript",
+          "content": "// Paste content of scripts/transform.js here",
+          "input_transforms": {
+            "validRows": {
+              "type": "javascript",
+              "expr": "results.b.validRows"
+            },
+            "mappingConfig": {
+              "type": "javascript",
+              "expr": "flow_input.mappingConfig"
+            }
+          }
+        }
+      },
+      {
+        "id": "d",
+        "summary": "Step 4: Send to API",
+        "value": {
+          "type": "rawscript",
+          "language": "javascript",
+          "content": "// Paste content of scripts/apiClient.js here",
+          "input_transforms": {
+            "customers": {
+              "type": "javascript",
+              "expr": "results.c.customers"
+            },
+            "apiUrl": {
+              "type": "javascript",
+              "expr": "flow_input.apiUrl"
+            },
+            "apiKey": {
+              "type": "javascript",
+              "expr": "flow_input.apiKey"
+            },
+            "retryAttempts": {
+              "type": "static",
+              "value": 3
+            },
+            "batchSize": {
+              "type": "static",
+              "value": 5
+            }
+          }
+        }
+      },
+      {
+        "id": "e",
+        "summary": "Step 5: Generate Report",
+        "value": {
+          "type": "rawscript",
+          "language": "javascript",
+          "content": "// Paste content of scripts/report.js here",
+          "input_transforms": {
+            "parseResult": {
+              "type": "javascript",
+              "expr": "results.a"
+            },
+            "validationResult": {
+              "type": "javascript",
+              "expr": "results.b"
+            },
+            "transformErrors": {
+              "type": "javascript",
+              "expr": "results.c.transformErrors"
+            },
+            "apiResult": {
+              "type": "javascript",
+              "expr": "results.d"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "schema": {
+    "type": "object",
+    "properties": {
+      "fileContent": {
+        "type": "string",
+        "description": "Raw CSV file content as string"
+      },
+      "apiUrl": {
+        "type": "string",
+        "description": "MockAPI endpoint URL for customer creation"
+      },
+      "apiKey": {
+        "type": "string",
+        "description": "Bearer token or API key (optional)"
+      },
+      "mappingConfig": {
+        "type": "object",
+        "description": "Transformation mapping config (paste content of config/mapping.json)"
+      }
+    },
+    "required": ["fileContent", "apiUrl"]
+  }
+}

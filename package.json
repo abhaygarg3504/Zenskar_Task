@@ -1,0 +1,14 @@
+{
+  "name": "csv-pipeline",
+  "version": "1.0.0",
+  "main": "run-pipeline.js",
+  "scripts": {
+    "api": "node mock-api/server.js",
+    "pipeline": "node run-pipeline.js sample-data/customers.csv http://localhost:3001/api/v1/customers test-api-key-12345",
+    "dev": "concurrently \"npm run api\" \"npm run pipeline\""
+  },
+  "dependencies": {
+    "concurrently": "^9.2.1",
+    "express": "^5.2.1"
+  }
+}

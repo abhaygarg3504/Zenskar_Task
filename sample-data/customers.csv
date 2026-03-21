@@ -1,0 +1,13 @@
+company_name,contact_email,contact_first_name,contact_last_name,phone_number,address,city,country,postal_code,tax_id,company_size
+Acme Corp,john.doe@acme.com,John,Doe,+1-555-0100,123 Business St,New York,USA,10001,TAX-123456,50-100
+Beta Inc,jane@beta.co,Jane,Smith,555.0200,456 Commerce Ave,San Francisco,USA,94105,TAX-789012,100-500
+Gamma LLC,contact@gamma.io,Carlos,Rivera,+44-20-7946-0958,789 Tech Lane,London,UK,EC1A1BB,TAX-345678,10-50
+Delta Systems,admin@delta.com,Priya,Patel,+91-98765-43210,22 Innovation Park,Mumbai,India,400001,TAX-901234,500-1000
+Epsilon Co,hello@epsilon.net,Liu,Wei,+86-10-8765-4321,88 Startup Road,Beijing,China,100080,TAX-567890,1-10
+Zeta Partners,ops@zeta.org,Maria,Garcia,+34-91-123-4567,5 Plaza Mayor,Madrid,Spain,28001,TAX-234567,50-100
+Eta Ventures,info@eta.io,Ahmed,Hassan,+20-2-1234-5678,12 Nile Blvd,Cairo,Egypt,11511,TAX-678901,10-50
+,missing@email.com,No,Name,+1-555-9999,123 Ghost St,Nowhere,USA,00000,TAX-000001,1-10
+Theta Corp,not-an-email,Thomas,Brown,+1-555-1234,99 Oak Avenue,Chicago,USA,60601,TAX-111222,100-500
+Iota Ltd,iota@iota.com,Sara,Connor,+1-555-5678,7 Sunset Blvd,Los Angeles,USA,90001,TAX-333444,50-100
+Kappa Group,kappa@kappa.com,James,Wilson,,200 Park Lane,Houston,USA,77001,TAX-555666,10-50
+Lambda Tech,lambda@lambda.dev,Nina,Okafor,+234-1-234-5678,45 Victoria Island,Lagos,Nigeria,101001,TAX-777888,100-500
