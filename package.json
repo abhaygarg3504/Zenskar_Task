@@ -2,13 +2,16 @@
   "name": "csv-pipeline",
   "version": "1.0.0",
   "main": "run-pipeline.js",
+  "type": "module",
   "scripts": {
     "api": "node mock-api/server.js",
-    "pipeline": "node run-pipeline.js sample-data/customers.csv https://69be49c817c3d7d97791a52a.mockapi.io/api/v1/customers test-api-key-12345",
+    "pipeline": "node scripts/orchestrator.js sample-data/customers.csv https://69be49c817c3d7d97791a52a.mockapi.io/api/v1/customers test-api-key-12345",
     "dev": "concurrently \"npm run api\" \"npm run pipeline\""
   },
   "dependencies": {
     "concurrently": "^9.2.1",
-    "express": "^5.2.1"
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.20.0"
   }
 }

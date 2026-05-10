@@ -7,6 +7,7 @@ export async function main(rows, validationRules) {
     required: ["company_name", "contact_email"],
     email: ["contact_email"],
     nonEmpty: ["contact_first_name", "contact_last_name"],
+    
   };
 
   const validRows = [];
@@ -34,7 +35,7 @@ export async function main(rows, validationRules) {
 }
 
 function validateRow(row, rules) {
-  const errors = [];
+  const errors = []; 
 
   for (const field of rules.required || []) {
     if (!row[field] || row[field].trim() === "") {

@@ -11,3 +11,40 @@ Theta Corp,not-an-email,Thomas,Brown,+1-555-1234,99 Oak Avenue,Chicago,USA,60601
 Iota Ltd,iota@iota.com,Sara,Connor,+1-555-5678,7 Sunset Blvd,Los Angeles,USA,90001,TAX-333444,50-100
 Kappa Group,kappa@kappa.com,James,Wilson,,200 Park Lane,Houston,USA,77001,TAX-555666,10-50
 Lambda Tech,lambda@lambda.dev,Nina,Okafor,+234-1-234-5678,45 Victoria Island,Lagos,Nigeria,101001,TAX-777888,100-500
+Nova Solutions,nova@nova.com,Alex,Turner,+1-555-0301,10 Maple Drive,Boston,USA,02101,TAX-100001,50-100
+Orbit Tech,orbit@orbit.io,Priya,Nair,+91-98001-12345,33 Cyber City,Hyderabad,India,500081,TAX-100002,100-500
+Pulse Media,pulse@pulse.net,Carlos,Mendez,+52-55-1234-5678,77 Reforma Ave,Mexico City,Mexico,06600,TAX-100003,10-50
+Quasar Inc,quasar@quasar.com,Fatima,Al-Rashid,+971-4-123-4567,Level 5 DIFC Tower,Dubai,UAE,00000,TAX-100004,500-1000
+Redwood Labs,redwood@redwood.dev,Lena,Hoffmann,+49-30-1234-5678,12 Unter den Linden,Berlin,Germany,10117,TAX-100005,50-100
+Summit Group,summit@summit.org,Yuki,Tanaka,+81-3-1234-5678,3-1 Marunouchi,Tokyo,Japan,100-0005,TAX-100006,100-500
+Titan Works,titan@titan.com,Amara,Diallo,+221-33-123-4567,45 Avenue Bourguiba,Dakar,Senegal,10700,TAX-100007,1-10
+Umbrella Co,umbrella@umbrella.net,Sean,Murphy,+353-1-234-5678,22 O'Connell St,Dublin,Ireland,D01X2P3,TAX-100008,10-50
+Vertex AI,vertex@vertex.ai,Sofia,Rossi,+39-06-1234-5678,88 Via Veneto,Rome,Italy,00187,TAX-100009,500-1000
+Waverly Corp,waverly@waverly.com,Daniel,Osei,+233-30-123-4567,14 Liberation Road,Accra,Ghana,00233,TAX-100010,50-100
+Xenon Digital,xenon@xenon.io,Mei,Zhang,+86-21-8765-1234,200 Century Ave,Shanghai,China,200120,TAX-100011,100-500
+Yield Partners,yield@yield.co,Hannah,Becker,+49-89-1234-5678,9 Maximilianstr,Munich,Germany,80539,TAX-100012,10-50
+Zenith Corp,zenith@zenith.com,Omar,Farouq,+20-3-123-4567,55 Corniche Road,Alexandria,Egypt,21500,TAX-100013,50-100
+,bad-email-only,No,Company,+1-555-0000,1 Error Lane,Nowhere,USA,00001,TAX-ERR001,1-10
+Atlas Group,not-valid-email,Marco,Ferrari,+39-02-1234-5678,77 Corso Buenos Aires,Milan,Italy,20124,TAX-100015,100-500
+Blaze Systems,blaze@blaze.com,,Nakamura,+81-6-1234-5678,5 Midosuji Blvd,Osaka,Japan,530-0001,TAX-100016,50-100
+Crest Ventures,crest@crest.io,Nia,,+27-11-123-4567,88 Sandton Drive,Johannesburg,South Africa,2196,TAX-100017,10-50
+Drift Labs,drift@drift.com,Ethan,Cole,,321 Harbor Blvd,Seattle,USA,98101,TAX-100018,500-1000
+Echo Partners,echo@echo.net,Leila,Ahmadi,+98-21-1234-5678,12 Valiasr St,Tehran,Iran,1415613111,TAX-100019,100-500
+Pearl Analytics,pearl@pearl.net,Ingrid,Larsson,+46-8-123-4567,22 Kungsgatan,Stockholm,Sweden,11156,TAX-200004,50-100
+Quartz Media,quartz@quartz.dev,Kwame,Mensah,+233-24-123-4567,7 Independence Ave,Accra,Ghana,00233,TAX-200005,1-10
+Raven Cloud,raven@raven.com,Isabella,Conti,+39-055-123-4567,15 Via Tornabuoni,Florence,Italy,50123,TAX-200006,100-500
+Stone Bridge,stone@stone.io,Mikhail,Petrov,+7-495-123-4567,10 Tverskaya St,Moscow,Russia,125009,TAX-200007,50-100
+Terra Labs,terra@terra.com,Zara,Ahmed,+92-21-3456-7890,33 Shahrah-e-Faisal,Karachi,Pakistan,75350,TAX-200008,10-50
+Ultra Ventures,ultra@ultra.net,Finn,Eriksen,+47-22-12-3456,5 Karl Johans Gate,Oslo,Norway,0154,TAX-200009,500-1000
+Vortex Corp,vortex@vortex.com,Adaeze,Eze,+234-80-1234-5678,18 Adeola Odeku,Lagos,Nigeria,101001,TAX-200010,100-500
+Willow Tech,willow@willow.io,Chen,Wei,+86-755-8765-4321,9 Shennan Boulevard,Shenzhen,China,518000,TAX-200011,50-100
+Xray Digital,xray@xray.com,Pilar,Moreno,+57-1-234-5678,66 Carrera 7,Bogota,Colombia,110111,TAX-200012,10-50
+Yonder Group,yonder@yonder.org,Tobias,Muller,+41-44-123-4567,3 Bahnhofstrasse,Zurich,Switzerland,8001,TAX-200013,500-1000
+Zion Platforms,zion@zion.com,Amina,Traoré,+225-27-12-3456,44 Boulevard Latrille,Abidjan,Ivory Coast,00225,TAX-200014,50-100
+,broken@email.com,Ghost,Row,+1-555-0000,0 Void Street,Nowhere,USA,00000,TAX-ERR002,1-10
+Amber Works,not-an-email-at-all,Lucas,Petit,+33-1-2345-6789,12 Rue de Rivoli,Paris,France,75001,TAX-200016,100-500
+Blue Crest,blue@bluecrest.com,,Johansson,+46-31-123-4567,8 Avenyn,Gothenburg,Sweden,41136,TAX-200017,10-50
+Cobalt Inc,cobalt@cobalt.io,Elena,,+7-812-123-4567,20 Nevsky Prospect,Saint Petersburg,Russia,191186,TAX-200018,50-100
+Dusk Partners,dusk@dusk.com,Patrick,O'Brien,,17 Grafton Street,Dublin,Ireland,D02Y754,TAX-200019,500-1000
+,bad-format-email,,,+1-000-000-0000,No Address,Unknown,USA,00000,TAX-ERR003,1-10
+
