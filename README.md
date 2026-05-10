@@ -1,4 +1,4 @@
-# Windmill CSV Customer Import Pipeline
+# CSV Customer Import Pipeline
 
 A modular pipeline that reads customer data from a CSV file, validates and transforms each row using config-driven rules, then creates customers via a REST API — with retry handling, batch processing, and a structured final report.
 
@@ -49,7 +49,7 @@ Each module has one job. They talk to each other via plain JSON. Swapping, testi
 ## Project Structure
 
 ```
-windmill-csv-pipeline/
+csv-pipeline/
 │
 ├── scripts/
 │   ├── parseCsv.js       ← CSV parsing only (no validation, no transformation)
