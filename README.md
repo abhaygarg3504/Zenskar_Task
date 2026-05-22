@@ -456,7 +456,3 @@ To use it, paste each script's content into the corresponding step in the Windmi
 Create a `.env.example` in your repo root with these keys (values blank) so new contributors know what to fill in.
 
 ---
-
-## License
-
-MIT
