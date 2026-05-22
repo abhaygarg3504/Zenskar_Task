@@ -1,475 +1,462 @@
 # CSV Customer Import Pipeline
 
-A modular pipeline that reads customer data from a CSV file, validates and transforms each row using config-driven rules, then creates customers via a REST API — with retry handling, batch processing, and a structured final report.
+A production-grade Node.js data pipeline that ingests customer records from CSV files, validates and transforms them, sends them to an external API, and loads them into a PostgreSQL data warehouse — with full monitoring, incremental loading, and analytics-ready views.
 
 ---
 
 ## Table of Contents
 
-- [How it works](#how-it-works)
+- [Overview](#overview)
 - [Project Structure](#project-structure)
+- [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
-- [Local Setup & Installation](#local-setup--installation)
-- [Quick Start](#quick-start)
-- [CSV Format](#csv-format)
-- [Configuration — config/mapping.json](#configuration--configmappingjson)
-- [When you need to touch the scripts](#when-you-need-to-touch-the-scripts)
-- [API Behavior](#api-behavior)
-- [Reading the Report](#reading-the-report)
-- [Common Errors](#common-errors)
-- [Design Notes](#design-notes)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Database Setup](#database-setup)
+- [Running the Pipeline](#running-the-pipeline)
+- [Pipeline Stages](#pipeline-stages)
+- [Scripts Reference](#scripts-reference)
+- [Data Quality Checks](#data-quality-checks)
+- [Incremental Loading](#incremental-loading)
+- [Pipeline Monitoring](#pipeline-monitoring)
+- [Analytics & Reporting](#analytics--reporting)
+- [Windmill Flow (Optional)](#windmill-flow-optional)
+- [Error Handling & Retry Logic](#error-handling--retry-logic)
+- [Environment Variables](#environment-variables)
 
 ---
 
-## How it works
+## Overview
+
+This pipeline processes customer CSV files through seven sequential stages:
 
 ```
-CSV File
-   │
-   ▼
-parseCsv      →  reads rows, handles quoted fields and encoding
-   │
-   ▼
-validate      →  checks required fields and email format (rules from config)
-   │ valid rows only
-   ▼
-transform     →  maps CSV columns to customer object shape (driven by mapping.json)
-   │
-   ▼
-apiClient     →  POSTs to API in batches of 5, retries failed requests up to 3×
-   │
-   ▼
-report        →  aggregates everything into a structured JSON report
+CSV File → Parse → Validate → Data Quality → Incremental Filter → Transform → API Send → Warehouse Load
 ```
 
-Each module has one job. They talk to each other via plain JSON. Swapping, testing, or rewriting one module doesn't touch the others.
+Every run is tracked in the `pipeline_runs` table with full metrics and a data quality report stored as JSONB.
 
 ---
 
 ## Project Structure
 
 ```
-csv-pipeline/
+project-root/
 │
 ├── scripts/
-│   ├── parseCsv.js       ← CSV parsing only (no validation, no transformation)
-│   ├── validate.js       ← validation only (rules pulled from config)
-│   ├── transform.js      ← transformation engine (mapping pulled from config)
-│   ├── apiClient.js      ← API calls with retry + batching
-│   └── report.js         ← aggregates results into a report
+│   ├── orchestrator.js        # Main pipeline runner — entry point
+│   ├── parseCsv.js            # Stage 1: CSV parsing
+│   ├── validate.js            # Stage 2: Row-level validation
+│   ├── dataQuality.js         # Stage 3: Data quality checks & scoring
+│   ├── transform.js           # Stage 5: Field mapping & transformation
+│   ├── apiClient.js           # Stage 6: Batched API send with retry
+│   ├── report.js              # Final report generation
+│   ├── warehouseLoader.js     # Stage 7: PostgreSQL warehouse load
+│   ├── pipelineMonitor.js     # Run tracking (create/start/complete/fail)
+│   └── incrementalLoader.js   # Checkpoint & duplicate hash filtering
 │
 ├── config/
-│   └── mapping.json      ← the main config: field mappings, transforms, validation rules
+│   ├── db.js                  # PostgreSQL connection pool
+│   └── mapping.json           # Field mapping & transform rules
 │
-├── flows/
-│   └── csv_pipeline.json ← Windmill flow export
-│
-├── mock-api/
-│   ├── server.js         ← local Express mock API (for testing without MockAPI.io)
-│   └── package.json
+├── warehouse/
+│   ├── schema.sql             # All DDL: tables, indexes, partitions, seed data
+│   ├── analytics_views.sql    # Power BI-ready views
+│   └── analytics_queries.sql  # Ad-hoc SQL examples
 │
 ├── sample-data/
-│   └── customers.csv     ← 12 test records, includes intentional errors
+│   └── customers.csv          # Example CSV file
 │
-├── docs/
-│   ├── setup-guide.md
-│   ├── developer-guide.md
-│   └── user-guide.md
+├── state/
+│   └── last_run_timestamp.json  # Auto-generated incremental checkpoint
 │
-└── run-pipeline.js       ← standalone runner, no Windmill needed
+├── .env                       # Environment variables (not committed)
+├── .env.example               # Template for .env
+├── package.json
+└── README.md
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    orchestrator.js                       │
+│                                                         │
+│  [1] parseCsv → [2] validate → [3] dataQuality          │
+│      → [4] incrementalFilter → [5] transform            │
+│          → [6] apiClient → [7] warehouseLoader          │
+│                    ↓                                    │
+│              pipelineMonitor  (pipeline_runs table)     │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+              PostgreSQL: customer_warehouse
+        ┌──────────────────────────────────┐
+        │  stg_customers                   │  ← raw staging
+        │  dim_customer                    │  ← SCD upsert
+        │  dim_country / dim_import_date   │  ← dimensions
+        │  fact_customer_imports           │  ← partitioned fact
+        │  pipeline_runs                   │  ← monitoring
+        └──────────────────────────────────┘
+                         ↓
+              Analytics Views (Power BI ready)
 ```
 
 ---
 
 ## Prerequisites
 
-Before setting up the project, make sure you have the following installed on your machine:
-
-### 1. Node.js (v18 or higher)
-
-Check if Node.js is already installed:
-```bash
-node --version
-```
-
-If not installed, download it from the official site: https://nodejs.org/en/download
-
-- **Windows/macOS**: Download the LTS installer and run it.
-- **Linux (Ubuntu/Debian)**:
-  ```bash
-  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-  sudo apt-get install -y nodejs
-  ```
-
-### 2. npm (comes with Node.js)
-
-Verify npm is available:
-```bash
-npm --version
-```
-
-### 3. Git
-
-To clone the repository:
-```bash
-git --version
-```
-
-If not installed: https://git-scm.com/downloads
+- **Node.js** v18 or higher
+- **PostgreSQL** v14 or higher
+- **npm** v8 or higher
+- Network access to your target REST API endpoint
 
 ---
 
-## Local Setup & Installation
-
-Follow these steps to get the project running on your local machine.
-
-### Step 1 — Clone the repository
+## Installation
 
 ```bash
-git clone https://github.com/your-org/windmill-csv-pipeline.git
-cd windmill-csv-pipeline
-```
+# 1. Clone the repository
+git clone <your-repo-url>
+cd csv-customer-pipeline
 
-> If you received the project as a ZIP file, extract it and navigate into the folder:
-> ```bash
-> cd windmill-csv-pipeline
-> ```
-
-### Step 2 — Install root dependencies
-
-From the project root, install the main pipeline dependencies:
-
-```bash
+# 2. Install dependencies
 npm install
+
+# 3. Copy environment template
+cp .env.example .env
+
+# 4. Fill in your values in .env
 ```
 
-### Step 3 — Install mock API dependencies
+**Dependencies used:**
 
-The mock API is a separate Express server with its own `package.json`. Install its dependencies:
-
-```bash
-cd mock-api
-npm install
-cd ..
-```
-
-### Step 4 — Verify the project structure
-
-Your directory should look like this after installation:
-
-```
-windmill-csv-pipeline/
-├── node_modules/         ← installed after Step 2
-├── mock-api/
-│   └── node_modules/     ← installed after Step 3
-├── scripts/
-├── config/
-├── sample-data/
-└── run-pipeline.js
-```
+| Package | Purpose |
+|---|---|
+| `pg` | PostgreSQL client (node-postgres) |
+| `dotenv` | Environment variable loading |
+| Node built-ins (`fs`, `crypto`, `path`) | File I/O, hashing, paths |
 
 ---
 
-## Quick Start
+## Configuration
 
-Choose one of the three options below depending on your setup.
+### `.env` file
 
----
-
-### Option A — Run locally (no Windmill, no internet needed)
-
-This is the recommended option for local development and testing.
-
-**You will need two terminal windows open at the same time.**
-
-**Terminal 1 — Start the mock API server:**
-```bash
-cd mock-api
-npm start
+```env
+PG_HOST=localhost
+PG_PORT=5432
+PG_DATABASE=customer_warehouse
+PG_USER=postgres
+PG_PASSWORD=your_password
 ```
 
-You should see:
-```
-Mock API running at http://localhost:3001
-  POST http://localhost:3001/api/v1/customers
-  API Key (Bearer): test-api-key-12345
-```
+### `config/mapping.json`
 
-Keep this terminal running.
-
-**Terminal 2 — Run the pipeline:**
-```bash
-node run-pipeline.js sample-data/customers.csv http://localhost:3001/api/v1/customers test-api-key-12345
-```
-
-**Check the results:**
-```bash
-# View the generated report
-cat report.json
-
-# View all successfully created customers
-curl http://localhost:3001/api/v1/customers
-```
-
----
-
-### Option B — Run on Windmill
-
-**1. Set up a cloud mock endpoint (MockAPI.io):**
-1. Go to https://mockapi.io and create a free account
-2. Create a project named `csv-pipeline`
-3. Add a resource called `customers` with these fields: `name`, `email`, `taxId`, `companySize`, `contact` (Object), `address` (Object), `metadata` (Object)
-4. Copy your endpoint URL — it looks like: `https://XXXXXXXX.mockapi.io/api/v1/customers`
-
-**2. Create the Windmill flow:**
-1. Go to **Flows → New Flow**
-2. Add 5 steps as inline JavaScript scripts in this order:
-
-| Step | Script file | Key input |
-|------|-------------|-----------|
-| a | parseCsv.js | `fileContent` ← `flow_input.fileContent` |
-| b | validate.js | `rows` ← `results.a.rows` |
-| c | transform.js | `validRows` ← `results.b.validRows` |
-| d | apiClient.js | `customers` ← `results.c.customers` |
-| e | report.js | `parseResult` ← `results.a`, etc. |
-
-Refer to `flows/csv_pipeline.json` for the full binding configuration.
-
-**3. Run the flow with these inputs:**
-- `fileContent` — paste the contents of `sample-data/customers.csv`
-- `apiUrl` — your MockAPI endpoint URL
-- `apiKey` — leave blank (MockAPI doesn't require one by default)
-- `mappingConfig` — paste the full contents of `config/mapping.json`
-
----
-
-### Option C — MockAPI.io endpoint with local runner
-
-Use this if you want to run the pipeline locally but send data to a cloud endpoint.
-
-```bash
-node run-pipeline.js sample-data/customers.csv https://YOUR_ID.mockapi.io/api/v1/customers
-```
-
----
-
-## Expected Output
-
-```
- CSV Pipeline Starting...
-
- Step 1: Parsing CSV...
-   Parsed 12 rows. Parse errors: 0
-
- Step 2: Validating rows...
-   Valid: 9 | Invalid: 3
-   ⚠ Row 8 (?): Missing required: "company_name"
-   ⚠ Row 9 (Theta Corp): Bad email in "contact_email": not-an-email
-
- Step 3: Transforming data...
-   Transformed 9 customers.
-
- Step 4: Sending to API...
-   ✓ Acme Corp → id=1
-   ✓ Beta Inc → id=2
-   ...
-
- Final Report:
-────────────────────────────────────────
-  Rows in file:        12
-  Successfully parsed: 12
-  Passed validation:   9
-  Failed validation:   3
-  API success:         9
-  API failed:          0
-────────────────────────────────────────
-  Overall success rate: 75.0%
-```
-
----
-
-## CSV Format
-
-Your file must include a header row. Required columns are marked below:
-
-| Column | Required | Example |
-|--------|----------|---------|
-| `company_name` | yes | Acme Corp |
-| `contact_email` | yes | john@acme.com |
-| `contact_first_name` | yes | John |
-| `contact_last_name` | yes | Doe |
-| `phone_number` | no | +1-555-0100 |
-| `address` | no | 123 Business St |
-| `city` | no | New York |
-| `country` | no | USA |
-| `postal_code` | no | 10001 |
-| `tax_id` | no | TAX-123456 |
-| `company_size` | no | 50-100 |
-
-A few things to keep in mind:
-- Column names are case-sensitive
-- Save the file as UTF-8
-- Fields containing commas must be wrapped in quotes: `"Smith, John"`
-- Email addresses are auto-lowercased
-- Country codes are auto-uppercased
-- Phone numbers are auto-cleaned (non-numeric characters stripped, except `+ - ( ) spaces`)
-
----
-
-## Configuration — config/mapping.json
-
-This is the only file you need to touch for most changes. No script edits required.
-
-### Flat field mappings
+Controls how CSV columns map to the customer object sent to the API:
 
 ```json
-"fieldMappings": {
-  "name":  { "from": "company_name",  "transform": "trim" },
-  "email": { "from": "contact_email", "transform": "lowercase" }
-}
-```
-
-To add a new field, just add a new entry:
-```json
-"website": { "from": "website_url", "transform": "lowercase" }
-```
-
-### Nested objects (contact, address, metadata)
-
-```json
-"nestedMappings": {
-  "contact": {
-    "firstName": { "from": "contact_first_name", "transform": "trim" }
+{
+  "fieldMappings": {
+    "name":  { "from": "company_name",  "transform": "trim" },
+    "email": { "from": "contact_email", "transform": "lowercase" }
+  },
+  "nestedMappings": {
+    "contact": {
+      "firstName": { "from": "contact_first_name", "transform": "trim" },
+      "phone":     { "from": "phone_number", "transform": "cleanPhone" }
+    },
+    "address": {
+      "street":  { "from": "address",  "transform": "trim" },
+      "country": { "from": "country",  "transform": "uppercase" }
+    }
+  },
+  "validationRules": {
+    "required": ["company_name", "contact_email"],
+    "email":    ["contact_email"]
+  },
+  "transforms": {
+    "trim":       "value => value?.trim() ?? ''",
+    "lowercase":  "value => value?.trim().toLowerCase() ?? ''",
+    "uppercase":  "value => value?.trim().toUpperCase() ?? ''",
+    "cleanPhone": "value => value?.replace(/[^\\d+\\-()\\s]/g, '').trim() ?? ''"
   }
 }
 ```
 
-Static values (same for every row):
-```json
-"metadata": {
-  "source":     { "value": "csv_import" },
-  "importedAt": { "value": "__NOW__" }
-}
+---
+
+## Database Setup
+
+Run the schema file against your PostgreSQL database:
+
+```bash
+psql -U postgres -d customer_warehouse -f warehouse/schema.sql
 ```
 
-`__NOW__` inserts the current ISO timestamp automatically.
+Then create the analytics views:
 
-### Validation rules
-
-```json
-"validationRules": {
-  "required": ["company_name", "contact_email"],
-  "email":    ["contact_email"],
-  "nonEmpty": ["contact_first_name", "contact_last_name"]
-}
+```bash
+psql -U postgres -d customer_warehouse -f warehouse/analytics_views.sql
 ```
 
-| Rule | Effect |
-|------|--------|
-| `required` | Row rejected if field is missing or blank |
-| `email` | Row rejected if field is not a valid email |
-| `nonEmpty` | Row rejected if field is present but empty |
+This creates:
 
-### Transforms
+- `stg_customers` — staging table with quality flags
+- `dim_customer` — customer dimension with upsert on email
+- `dim_country` — pre-seeded country reference table
+- `dim_import_date` — date dimension (2023–2027)
+- `fact_customer_imports` — partitioned fact table
+- `pipeline_runs` — run monitoring and metrics
+- Six analytics views (see [Analytics & Reporting](#analytics--reporting))
 
-```json
-"transforms": {
-  "trim":       "value => value?.trim() ?? ''",
-  "lowercase":  "value => value?.trim().toLowerCase() ?? ''",
-  "uppercase":  "value => value?.trim().toUpperCase() ?? ''",
-  "cleanPhone": "value => value?.replace(/[^\\d+\\-()\\s]/g, '').trim() ?? ''"
-}
+---
+
+## Running the Pipeline
+
+### Full run
+
+```bash
+node scripts/orchestrator.js path/to/customers.csv https://your-api.com/api/v1/customers YOUR_API_KEY
 ```
 
-Add a custom one:
-```json
-"titleCase": "value => value?.split(' ').map(w => w[0]?.toUpperCase() + w.slice(1).toLowerCase()).join(' ') ?? ''"
+### Dry run (skip API send and warehouse write)
+
+```bash
+node scripts/orchestrator.js customers.csv https://api.example.com mykey --dry-run
 ```
 
-Then reference it anywhere in `fieldMappings` or `nestedMappings`:
-```json
-"city": { "from": "city", "transform": "titleCase" }
+Or set `dryRun: true` when calling `runPipeline()` programmatically:
+
+```js
+import { runPipeline } from './scripts/orchestrator.js';
+
+await runPipeline({
+  csvFilePath: 'sample-data/customers.csv',
+  apiUrl:      'https://api.example.com/customers',
+  apiKey:      'your-key',
+  dryRun:      true,
+});
+```
+
+### Expected CSV format
+
+The CSV must contain these columns (order does not matter):
+
+```
+company_name, contact_email, contact_first_name, contact_last_name,
+phone_number, tax_id, company_size, address, city, country, postal_code
+```
+
+Example row:
+
+```csv
+company_name,contact_email,contact_first_name,contact_last_name,phone_number,tax_id,company_size,address,city,country,postal_code
+Acme Corp,john@acme.com,John,Doe,+1-555-0100,US123456,50-200,123 Main St,New York,US,10001
 ```
 
 ---
 
-## When you need to touch the scripts
+## Pipeline Stages
 
-Most changes are config-only. The cases below are exceptions:
+### Stage 1 — Parse CSV (`parseCsv.js`)
 
-| What you want to change | File to edit |
-|------------------------|-------------|
-| New validation type (e.g. phone format) | `scripts/validate.js` |
-| Different CSV delimiter (semicolons, tabs) | `scripts/parseCsv.js` |
-| Retry count or batch size defaults | `scripts/apiClient.js` |
-| Transform that calls an external service | `scripts/transform.js` |
+Reads raw CSV string, handles quoted fields, CRLF line endings, and column count mismatches. Returns `{ rows, headers, totalRows, parseErrors }`.
+
+### Stage 2 — Validate Rows (`validate.js`)
+
+Applies rules from `mapping.json`:
+- **required** — fails row if field is empty
+- **email** — fails row if email format is invalid
+- **nonEmpty** — warns if optional field is blank
+
+Returns `{ validRows, invalidRows, summary }`.
+
+### Stage 3 — Data Quality (`dataQuality.js`)
+
+Runs dataset-wide checks on all parsed rows (not just valid ones):
+
+- SHA-256 hash per row to detect exact duplicates
+- Duplicate email detection within the batch
+- Cross-batch duplicate check against `stg_customers` hashes
+- Schema drift detection (missing or unexpected columns)
+- Null rate analysis per field (warns if > 50%)
+- Country code validation against ISO list
+- Phone and email format validation
+- Produces a `qualityScore` (0–100) and enriches each row with `_isClean` and `_qualityIssues`
+
+### Stage 4 — Incremental Filter (`incrementalLoader.js`)
+
+Compares row hashes against `stg_customers` to skip already-loaded records. A `state/last_run_timestamp.json` checkpoint tracks the last successful run ID.
+
+### Stage 5 — Transform (`transform.js`)
+
+Maps CSV columns to the target customer object structure using `mapping.json`. Applies transform functions (`trim`, `lowercase`, `uppercase`, `cleanPhone`). Supports flat and nested output fields.
+
+### Stage 6 — Send to API (`apiClient.js`)
+
+Sends transformed customers to a REST API in batches of 5 (configurable). Features:
+- Exponential backoff retry (default 3 attempts)
+- Retries only on network errors and HTTP 429/5xx responses
+- Returns per-customer success/failure status
+
+### Stage 7 — Warehouse Load (`warehouseLoader.js`)
+
+Loads data into PostgreSQL in three steps:
+1. `stg_customers` — full staging insert with `ON CONFLICT DO NOTHING` on hash
+2. `dim_customer` — upsert on `contact_email` (SCD Type 1)
+3. `fact_customer_imports` — insert with foreign keys to all dimensions
 
 ---
 
-## API Behavior
+## Scripts Reference
 
-- Customers are sent in batches of 5 (concurrent within each batch)
-- Failed requests retry up to 3 times with exponential backoff: 500ms → 1s → 2s
-- Retries happen on HTTP 429 (rate limit) and HTTP 5xx (server errors)
-- Client errors (HTTP 4xx, except 429) are not retried
-- Invalid rows are skipped and logged — valid rows always continue processing
+| Script | Description |
+|---|---|
+| `orchestrator.js` | Runs all 7 stages end-to-end |
+| `parseCsv.js` | `main(fileContent)` → parsed rows |
+| `validate.js` | `main(rows, rules)` → valid/invalid split |
+| `dataQuality.js` | `main(rows, headers, existingHashes)` → quality report |
+| `transform.js` | `main(validRows, mappingConfig)` → customer objects |
+| `apiClient.js` | `main(customers, apiUrl, apiKey, retryAttempts, batchSize)` |
+| `report.js` | `main(parseResult, validationResult, transformErrors, apiResult)` |
+| `warehouseLoader.js` | `main(enrichedRows, customers, apiResults, runId, sourceFile)` |
+| `pipelineMonitor.js` | `createRun`, `startRun`, `completeRun`, `failRun` |
+| `incrementalLoader.js` | `readCheckpoint`, `writeCheckpoint`, `filterNewRows`, `getExistingHashes` |
 
 ---
 
-## Reading the Report
+## Data Quality Checks
 
-After each run, `report.json` is written to the project root:
+The `dataQuality.js` module produces a quality report with the following sections:
 
 ```json
 {
   "summary": {
-    "totalRowsInFile": 12,
-    "successfullyParsed": 12,
-    "passedValidation": 9,
-    "failedValidation": 3,
-    "apiSuccess": 9,
-    "apiFailed": 0
+    "totalRows": 100,
+    "cleanRows": 87,
+    "rowsWithIssues": 13,
+    "duplicatesFound": 2,
+    "qualityScore": 87
   },
-  "errors": [
-    {
-      "stage": "validation",
-      "rowNumber": 8,
-      "errors": ["Missing required: \"company_name\""]
-    }
-  ],
-  "successfulCustomers": [
-    { "name": "Acme Corp", "email": "john.doe@acme.com", "id": "1" }
+  "schemaDrift": {
+    "missingFields": [],
+    "unexpectedFields": ["legacy_id"]
+  },
+  "nullPercentages": {
+    "company_name": 0,
+    "contact_email": 3.0,
+    "phone_number": 42.0
+  },
+  "datasetIssues": [...],
+  "duplicates": [...],
+  "rowIssues": [
+    { "rowNumber": 5, "issueTypes": ["INVALID_COUNTRY:XX", "NULL_REQUIRED:contact_email"] }
   ]
 }
 ```
 
-The `errors` array tells you which rows failed and why, so you can fix them and re-run.
+This report is also stored as JSONB in the `pipeline_runs.dq_report` column.
+
+**Issue type codes:**
+
+| Code | Meaning |
+|---|---|
+| `NULL_REQUIRED:field` | Required field is empty |
+| `INVALID_EMAIL_FORMAT:value` | Email fails regex |
+| `INVALID_PHONE:value` | Phone contains invalid characters |
+| `INVALID_COUNTRY:code` | Country code not in ISO allowlist |
+| `DUPLICATE_ROW` | Same company+email+taxId seen before |
+| `DUPLICATE_EMAIL:email` | Email repeated within the batch |
+| `HIGH_NULL_RATE` | Field is >50% null across all rows |
+| `SCHEMA_DRIFT` | Missing or unexpected CSV columns |
 
 ---
 
-## Common Errors
+## Incremental Loading
 
-| Message | Cause | Fix |
-|---------|-------|-----|
-| `Missing required: "company_name"` | Column is blank | Add the company name |
-| `Bad email in "contact_email"` | Missing `@` or domain | Correct the email |
-| `column count mismatch` | Unescaped comma in a field | Wrap that field in quotes |
-| `HTTP 429` | API rate limit hit | Pipeline retries automatically |
-| `HTTP 500` | API server error | Pipeline retries automatically |
-| `Cannot find module` | Dependencies not installed | Run `npm install` in root and `mock-api/` |
-| `EADDRINUSE: address already in use :3001` | Port 3001 is already occupied | Kill the process using port 3001 or change the port in `mock-api/server.js` |
-| `ENOENT: no such file or directory` | Wrong path to CSV file | Check the file path passed to `run-pipeline.js` |
+On every run, `incrementalLoader.js`:
+
+1. Loads all existing `source_hash` values from `stg_customers`
+2. Computes a SHA-256 hash per incoming row (`company_name|contact_email|tax_id`)
+3. Filters out rows whose hash already exists in the database
+4. After a successful run, writes `state/last_run_timestamp.json`
+
+To force a full reload, delete `state/last_run_timestamp.json` before running.
 
 ---
 
-## Design Notes
+## Pipeline Monitoring
 
-**Config-driven** — field mappings, transforms, and validation rules all live in `mapping.json`. Changing how data is structured requires no code changes.
+Every run writes to the `pipeline_runs` table:
 
-**Single-responsibility modules** — each script does one thing. This makes them easy to test individually and swap out without side effects.
+| Column | Description |
+|---|---|
+| `run_id` | UUID for this run |
+| `status` | `running`, `success`, `partial`, `failed` |
+| `records_in_file` | Total rows in source CSV |
+| `records_parsed` | Successfully parsed |
+| `records_valid` | Passed validation |
+| `records_new` | Not seen in previous runs |
+| `records_loaded` | Written to fact table |
+| `records_api_success` | Successfully sent to API |
+| `success_rate` | `api_success / parsed * 100` |
+| `execution_time_ms` | Wall-clock duration |
+| `dq_report` | Full JSON quality report |
 
-**Fail-forward validation** — rows that fail validation are logged and skipped. The rest of the file keeps processing.
+---
 
-**Retry with backoff** — transient API failures don't kill the run. The pipeline gives the server time to recover before trying again.
+## Analytics & Reporting
 
-**Batch concurrency** — sending 5 requests in parallel per batch keeps the pipeline fast without hammering the API.
+Six analytics views are available for Power BI or direct SQL queries:
+
+| View | Description |
+|---|---|
+| `vw_pipeline_health` | All run metrics with execution time |
+| `vw_daily_import_volume` | Daily import counts and success rates |
+| `vw_customer_by_country` | Customer distribution by country with validity rate |
+| `vw_validity_summary` | Data quality trend over time |
+| `vw_company_size_distribution` | Customer breakdown by company size |
+| `vw_pipeline_success_trend` | Daily aggregate of pipeline runs |
+
+Example queries are in `warehouse/analytics_queries.sql`.
+
+---
+
+## Windmill Flow (Optional)
+
+A `flow.json` is included to run this pipeline as a Windmill workflow with five steps: parse → validate → transform → API → report. Each step is an independent script with typed inputs via `flow_input` and `results.<step_id>`.
+
+To use it, paste each script's content into the corresponding step in the Windmill editor and provide `fileContent`, `apiUrl`, `apiKey`, and `mappingConfig` as flow inputs.
+
+---
+
+## Error Handling & Retry Logic
+
+- **Parse errors** — logged per row; malformed rows are skipped, rest continue
+- **Validation failures** — invalid rows collected and reported; pipeline continues with valid rows
+- **Transform errors** — per-row, pipeline continues with remaining rows
+- **API failures** — exponential backoff (500ms → 1s → 2s); only retries on network errors, 429, and 5xx responses; 4xx client errors are not retried
+- **Warehouse errors** — per-row, other rows continue; errors collected in `warehouseResult.errors`
+- **Pipeline crash** — `failRun()` updates `pipeline_runs` with `status = 'failed'` and the error message
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `PG_HOST` | `localhost` | PostgreSQL server host |
+| `PG_PORT` | `5432` | PostgreSQL port |
+| `PG_DATABASE` | `customer_warehouse` | Target database name |
+| `PG_USER` | `postgres` | Database user |
+| `PG_PASSWORD` | _(empty)_ | Database password |
+
+Create a `.env.example` in your repo root with these keys (values blank) so new contributors know what to fill in.
+
+---
+
+## License
+
+MIT

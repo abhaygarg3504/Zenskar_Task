@@ -132,8 +132,6 @@ export async function runPipeline({
   }
 }
 
-// ── CLI entry point ──────────────────────────────────────────────────────────
-// Run as: node scripts/orchestrator.js ./data/customers.csv https://api.example.com/customers
 if (process.argv[1].endsWith("orchestrator.js")) {
   const [,, csvPath, apiUrl, apiKey] = process.argv;
   if (!csvPath || !apiUrl) {
