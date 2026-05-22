@@ -71,7 +71,6 @@ export async function main(rows, headers, existingHashes = []) {
       seenHashes.add(rowHash);
     }
 
-    // 3. Email-level duplicate check (within this batch)
     const emailKey = (row.contact_email || "").toLowerCase().trim();
     if (emailKey) {
       if (seenEmails.has(emailKey)) {
@@ -81,7 +80,6 @@ export async function main(rows, headers, existingHashes = []) {
       }
     }
 
-    // 4. Null / empty checks + null count tracking
     for (const field of EXPECTED_SCHEMA_FIELDS) {
       const val = row[field];
       if (val === undefined || val === null || String(val).trim() === "") {
@@ -92,26 +90,22 @@ export async function main(rows, headers, existingHashes = []) {
       }
     }
 
-    // 5. Country validation
     const country = (row.country || "").trim().toUpperCase();
     if (country && !VALID_COUNTRY_CODES.has(country)) {
       rowIssues[rowNum].push(`INVALID_COUNTRY:${country}`);
     }
 
-    // 6. Phone validation
     const phone = (row.phone_number || "").trim();
     if (phone && !PHONE_RE.test(phone)) {
       rowIssues[rowNum].push(`INVALID_PHONE:${phone}`);
     }
 
-    // 7. Email format validation
     const email = (row.contact_email || "").trim();
     if (email && !EMAIL_RE.test(email)) {
       rowIssues[rowNum].push(`INVALID_EMAIL_FORMAT:${email}`);
     }
   }
 
-  // ── 8. Null percentage checks (dataset-level) ───────────────────────
   const nullPercentages = {};
   const nullWarnings    = [];
   for (const [field, count] of Object.entries(nullCounts)) {
@@ -129,7 +123,6 @@ export async function main(rows, headers, existingHashes = []) {
   }
   issues.push(...nullWarnings);
 
-  // ── Summarise per-row issues ────────────────────────────────────────
   const rowIssueList = Object.entries(rowIssues)
     .filter(([, v]) => v.length > 0)
     .map(([rowNumber, issueTypes]) => ({ rowNumber: Number(rowNumber), issueTypes }));
@@ -147,7 +140,7 @@ export async function main(rows, headers, existingHashes = []) {
       cleanRows:          rows.length - totalRowsWithIssues,
       rowsWithIssues:     totalRowsWithIssues,
       duplicatesFound:    duplicates.length,
-      qualityScore,       // 0–100; aim for > 90 in production
+      qualityScore,
     },
     schemaDrift: {
       missingFields,
@@ -159,7 +152,6 @@ export async function main(rows, headers, existingHashes = []) {
     rowIssues:      rowIssueList,
   };
 
-  // Attach hash to each row (used by incremental loader + warehouse)
   const enrichedRows = rows.map(r => ({
     ...r,
     _sourceHash:   r._sourceHash,

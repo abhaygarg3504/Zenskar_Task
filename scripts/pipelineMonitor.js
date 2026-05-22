@@ -1,11 +1,3 @@
-// scripts/pipelineMonitor.js
-// Writes run metrics to pipeline_runs table
-//
-// Interview talking points:
-// - "Every pipeline run is recorded — I can trend success rates over time"
-// - "The DQ report is stored as JSONB so I can query into it from Power BI"
-// - "This is operational analytics / pipeline observability"
-
 import { query } from "../config/db.js";
 import crypto from "crypto";
 

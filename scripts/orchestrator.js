@@ -1,11 +1,3 @@
-// scripts/orchestrator.js
-// Pipeline Orchestrator — job runner
-//
-// Interview talking points:
-// - "This is the main entry point. Each stage is discrete — like a DAG node."
-// - "In production this would be replaced by Airflow, Prefect, or Dagster"
-// - "Each stage outputs a result that feeds the next stage — functional pipeline"
-// - "The orchestrator handles errors at each stage and logs progress"
 
 import fs from "fs";
 import { main as parseCsv }       from "./parseCsv.js";

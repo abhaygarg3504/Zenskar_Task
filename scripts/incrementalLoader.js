@@ -1,12 +1,3 @@
-// scripts/incrementalLoader.js
-// Incremental / checkpoint loading
-//
-// Interview talking points:
-// - "Only processes records newer than the last successful run"
-// - "Uses source hash to detect already-loaded records — idempotent"
-// - "If the pipeline reruns, it won't double-load data"
-// - "This is how CDC (Change Data Capture) thinking works in practice"
-
 import fs   from "fs";
 import path from "path";
 import { query } from "../config/db.js";
@@ -36,8 +27,6 @@ export function writeCheckpoint(runId, timestamp) {
   console.log(`[Incremental] Checkpoint saved: ${timestamp}`);
 }
 
-// Filter out rows that were already loaded (by source hash)
-// This makes the pipeline IDEMPOTENT — safe to re-run
 export async function filterNewRows(enrichedRows) {
   if (enrichedRows.length === 0) return { newRows: [], skippedCount: 0 };
 
@@ -45,7 +34,6 @@ export async function filterNewRows(enrichedRows) {
 
   if (hashes.length === 0) return { newRows: enrichedRows, skippedCount: 0 };
 
-  // Check which hashes already exist in staging
   const result = await query(
     `SELECT source_hash FROM stg_customers WHERE source_hash = ANY($1)`,
     [hashes]
@@ -62,7 +50,6 @@ export async function filterNewRows(enrichedRows) {
   return { newRows, skippedCount };
 }
 
-// Get existing hashes for DQ duplicate detection
 export async function getExistingHashes() {
   try {
     const result = await query(`SELECT source_hash FROM stg_customers`);

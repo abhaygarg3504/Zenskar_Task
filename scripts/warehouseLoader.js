@@ -1,12 +1,3 @@
-// scripts/warehouseLoader.js
-// Writes data to PostgreSQL warehouse tables
-//
-// Interview talking points:
-// - "Staging-first pattern: raw data lands in stg_customers first"
-// - "Then we upsert into dimension and fact tables"
-// - "UPSERT (ON CONFLICT DO UPDATE) makes it idempotent"
-// - "Transactions ensure atomicity — either all rows load or none"
-
 import { query, transaction } from "../config/db.js";
 
 export async function main(enrichedRows, customers, apiResults, runId, sourceFile, pipelineVersion = "1.0.0") {
@@ -17,7 +8,6 @@ export async function main(enrichedRows, customers, apiResults, runId, sourceFil
     errors:          [],
   };
 
-  // ── STEP 1: Load staging table ──────────────────────────────────────
   console.log(`[Warehouse] Loading ${enrichedRows.length} rows to staging...`);
 
   for (const row of enrichedRows) {
@@ -56,11 +46,9 @@ export async function main(enrichedRows, customers, apiResults, runId, sourceFil
     }
   }
 
-  // ── STEP 2: Upsert dim_customer ─────────────────────────────────────
   console.log(`[Warehouse] Upserting dimension tables...`);
 
-  const customerKeyMap = {};  // email → customer_key (used for fact table)
-
+  const customerKeyMap = {};  
   for (const customer of customers) {
     try {
       const result = await query(`
@@ -106,7 +94,6 @@ export async function main(enrichedRows, customers, apiResults, runId, sourceFil
     }
   }
 
-  // ── STEP 3: Load fact table ─────────────────────────────────────────
   console.log(`[Warehouse] Loading fact table...`);
 
   const apiResultMap = {};
@@ -122,14 +109,11 @@ export async function main(enrichedRows, customers, apiResults, runId, sourceFil
     const countryCode = (customer.address?.country || "").substring(0, 2).toUpperCase();
 
     try {
-      // Resolve country_key
       const countryResult = await query(
         `SELECT country_key FROM dim_country WHERE country_code = $1`,
         [countryCode]
       );
       const countryKey = countryResult.rows[0]?.country_key || null;
-
-      // Resolve date_key
       const today = new Date();
       const dateKey = parseInt(
         `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,"0")}${String(today.getDate()).padStart(2,"0")}`
@@ -159,7 +143,6 @@ export async function main(enrichedRows, customers, apiResults, runId, sourceFil
     }
   }
 
-  // ── STEP 4: Mark staging rows as processed ──────────────────────────
   await query(
     `UPDATE stg_customers SET is_processed = TRUE, processed_at = NOW()
      WHERE pipeline_run_id = $1`,

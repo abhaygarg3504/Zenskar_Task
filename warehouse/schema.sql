@@ -1,17 +1,13 @@
 
 CREATE TABLE IF NOT EXISTS stg_customers (
-    -- Surrogate key for the staging row
     stg_id          SERIAL PRIMARY KEY,
-
-    -- Source tracking (metadata / lineage)
     source_file     VARCHAR(500),
     source_row      INTEGER,
-    source_hash     VARCHAR(64),        -- SHA256 of raw row for dedup
-    pipeline_run_id VARCHAR(36),        -- FK to pipeline_runs
+    source_hash     VARCHAR(64),        
+    pipeline_run_id VARCHAR(36),        
     ingested_at     TIMESTAMPTZ DEFAULT NOW(),
     pipeline_version VARCHAR(20),
 
-    -- Raw fields (as they came from CSV, cleaned only)
     company_name    VARCHAR(500),
     contact_email   VARCHAR(500),
     contact_first   VARCHAR(200),
@@ -24,38 +20,27 @@ CREATE TABLE IF NOT EXISTS stg_customers (
     country         VARCHAR(200),
     postal_code     VARCHAR(50),
 
-    -- Quality flags
     is_valid        BOOLEAN DEFAULT TRUE,
-    quality_issues  JSONB,              -- array of issue strings
-
-    -- Load tracking
+    quality_issues  JSONB,           
     is_processed    BOOLEAN DEFAULT FALSE,
     processed_at    TIMESTAMPTZ
 );
 
--- Index for incremental processing
 CREATE INDEX IF NOT EXISTS idx_stg_source_hash ON stg_customers(source_hash);
 CREATE INDEX IF NOT EXISTS idx_stg_ingested_at ON stg_customers(ingested_at);
 CREATE INDEX IF NOT EXISTS idx_stg_pipeline_run ON stg_customers(pipeline_run_id);
 CREATE INDEX IF NOT EXISTS idx_stg_processed ON stg_customers(is_processed);
 
--- ============================================================
--- DIMENSION TABLES
--- ============================================================
-
--- dim_country: reference table for country validation + analytics
--- Interview note: dimension tables are denormalized for query performance (OLAP pattern)
 
 CREATE TABLE IF NOT EXISTS dim_country (
     country_key     SERIAL PRIMARY KEY,
-    country_code    CHAR(2) UNIQUE,     -- ISO 3166-1 alpha-2
+    country_code    CHAR(2) UNIQUE,     
     country_name    VARCHAR(200),
     region          VARCHAR(100),
     is_valid        BOOLEAN DEFAULT TRUE,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Seed common country codes (extend as needed)
 INSERT INTO dim_country (country_code, country_name, region) VALUES
     ('US', 'United States', 'North America'),
     ('GB', 'United Kingdom', 'Europe'),
@@ -69,13 +54,8 @@ INSERT INTO dim_country (country_code, country_name, region) VALUES
     ('NL', 'Netherlands', 'Europe')
 ON CONFLICT (country_code) DO NOTHING;
 
-
--- dim_import_date: date dimension for time-based analytics
--- Interview note: date dimension is standard in star schemas.
--- Pre-populate it so queries can do calendar logic without date functions.
-
 CREATE TABLE IF NOT EXISTS dim_import_date (
-    date_key        INTEGER PRIMARY KEY,  -- YYYYMMDD format
+    date_key        INTEGER PRIMARY KEY,  
     full_date       DATE,
     year            SMALLINT,
     quarter         SMALLINT,
@@ -85,10 +65,8 @@ CREATE TABLE IF NOT EXISTS dim_import_date (
     day_of_week     SMALLINT,
     day_name        VARCHAR(20),
     is_weekend      BOOLEAN,
-    fiscal_quarter  SMALLINT              -- adjust to your fiscal year
+    fiscal_quarter  SMALLINT              
 );
-
--- Populate date dimension for 2023-2027 range
 INSERT INTO dim_import_date
 SELECT
     TO_CHAR(d, 'YYYYMMDD')::INTEGER                        AS date_key,
@@ -119,7 +97,6 @@ CREATE TABLE IF NOT EXISTS dim_customer (
     country_code    CHAR(2),
     postal_code     VARCHAR(50),
 
-    -- Lineage
     first_seen_at   TIMESTAMPTZ DEFAULT NOW(),
     last_updated_at TIMESTAMPTZ DEFAULT NOW(),
     source_run_id   VARCHAR(36),    
